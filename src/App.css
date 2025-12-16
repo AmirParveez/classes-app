@@ -1,3 +1,37 @@
+.login-container {
+  width: 350px;
+  margin: 120px auto;
+  padding: 25px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.input-box {
+  width: 100%;
+  padding: 10px;
+  margin: 12px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 10px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.error {
+  margin-top: 12px;
+  color: red;
+}
+
+
 .App {
   text-align: center;
 }

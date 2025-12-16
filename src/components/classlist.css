@@ -1,0 +1,64 @@
+/* Card Design */
+.card-modern {
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+/* Header Gradient */
+.bg-gradient-primary {
+  background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%);
+  color: #fff;
+}
+
+/* Buttons */
+.btn-modern {
+  border-radius: 8px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(28, 200, 138, 0.4);
+}
+
+/* Search Box */
+.search-box {
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Table Styling */
+.modern-table th {
+  background-color: #f8f9fc;
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modern-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.modern-table tr:hover {
+  background-color: #e6f4f1;
+}
+
+/* Inputs */
+.form-control,
+.form-select {
+  border-radius: 8px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #1cc88a;
+  box-shadow: 0 0 6px rgba(28, 200, 138, 0.4);
+}
+
+/* Responsive spacing */
+.row.g-3 > div {
+  margin-bottom: 10px;
+}

@@ -1,0 +1,603 @@
+import React, { useEffect, useState, useRef } from "react";
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "./StudentForm.css"; // Your existing styles
+
+const StudentForm = ({ studentId }) => {
+  /* ================= STATE ================= */
+  const [activeTab, setActiveTab] = useState("student");
+  const [isEdit, setIsEdit] = useState(false);
+
+  const [student, setStudent] = useState({
+    admissionNo: "",
+    studentName: "",
+    gender: "",
+    dob: "",
+    sessionOfAdmission: "2024-25",
+    aadhaarNo: "",
+    email: "",
+    phone: "",
+    category: "",
+    addressPresent: "",
+    addressPermanent: "",
+    district: "",
+    state: "",
+    pincode: "",
+    fathersName: "",
+    fathersQualification: "",
+    fathersJob: "",
+    fathersPhone: "",
+    fathersAadhaar: "",
+    fathersEmail: "",
+    mothersName: "",
+    mothersQualification: "",
+    mothersJob: "",
+    mothersPhone: "",
+    mothersAadhaar: "",
+    mothersEmail: "",
+  });
+
+  const [studentInfo, setStudentInfo] = useState({
+    current_Session: "2024-25",
+    sessionID: 1,
+    classID: "",
+    sectionID: "",
+    rollNo: "",
+    route: "",
+    busStop: "",
+  });
+
+  const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [busStops, setBusStops] = useState([]);
+
+  const [photos, setPhotos] = useState({
+    studentPhoto: null,
+    fatherPhoto: null,
+    motherPhoto: null,
+  });
+
+  const [preview, setPreview] = useState({
+    studentPhoto: "",
+    fatherPhoto: "",
+    motherPhoto: "",
+  });
+
+  // Cache for performance
+  const cache = useRef({
+    classes: null,
+    sections: {},
+    routes: null,
+    busStops: {},
+  });
+
+  /* ================= LOAD INITIAL ================= */
+  useEffect(() => {
+    loadClasses();
+    loadRoutes();
+    if (studentId) {
+      setIsEdit(true);
+      loadStudent(studentId);
+    }
+  }, [studentId]);
+
+  /* ================= API ================= */
+  const loadClasses = async () => {
+    if (cache.current.classes) {
+      setClasses(cache.current.classes);
+      return;
+    }
+    try {
+      const res = await axios.get("http://localhost:5161/api/classes");
+      setClasses(res.data);
+      cache.current.classes = res.data;
+    } catch {
+      toast.error("Failed to load classes");
+    }
+  };
+
+  const loadSections = async (classId) => {
+    if (cache.current.sections[classId]) {
+      setSections(cache.current.sections[classId]);
+      return;
+    }
+    try {
+      const res = await axios.get(
+        `http://localhost:5161/api/sections/byclass/${classId}`
+      );
+      setSections(res.data);
+      cache.current.sections[classId] = res.data;
+    } catch {
+      toast.error("Failed to load sections");
+    }
+  };
+
+  const loadRoutes = async () => {
+    if (cache.current.routes) {
+      setRoutes(cache.current.routes);
+      return;
+    }
+    try {
+      const res = await axios.get("http://localhost:5161/api/transport/routes");
+      setRoutes(res.data);
+      cache.current.routes = res.data;
+    } catch {
+      toast.error("Failed to load routes");
+    }
+  };
+
+  const loadBusStops = async (routeId) => {
+    if (cache.current.busStops[routeId]) {
+      setBusStops(cache.current.busStops[routeId]);
+      return;
+    }
+    try {
+      const res = await axios.get(
+        `http://localhost:5161/api/transport/busstops?routeId=${routeId}`
+      );
+      setBusStops(res.data);
+      cache.current.busStops[routeId] = res.data;
+    } catch {
+      toast.error("Failed to load bus stops");
+    }
+  };
+
+  const loadStudent = async (id) => {
+    try {
+      const res = await axios.get(`http://localhost:5161/api/student/${id}`);
+      setStudent(res.data.student);
+      setStudentInfo(res.data.studentInfo);
+      setPreview({
+        studentPhoto: res.data.studentPhoto,
+        fatherPhoto: res.data.fatherPhoto,
+        motherPhoto: res.data.motherPhoto,
+      });
+    } catch {
+      toast.error("Failed to load student details");
+    }
+  };
+
+  /* ================= HANDLERS ================= */
+  const handleStudentChange = (e) =>
+    setStudent({ ...student, [e.target.name]: e.target.value });
+
+  const handleInfoChange = async (e) => {
+    const { name, value } = e.target;
+    setStudentInfo({ ...studentInfo, [name]: value });
+
+    // AUTO ROLL NO
+    if (name === "sectionID") {
+      try {
+        const res = await axios.get(
+          `http://localhost:5161/api/student/next-rollno?classId=${studentInfo.classID}&sectionId=${value}`
+        );
+        setStudentInfo((prev) => ({ ...prev, rollNo: res.data }));
+      } catch {
+        toast.error("Failed to generate Roll No");
+      }
+    }
+
+    // Load bus stops if route selected
+    if (name === "route") {
+      loadBusStops(value);
+    }
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    setPhotos({ ...photos, [e.target.name]: file });
+    setPreview({ ...preview, [e.target.name]: URL.createObjectURL(file) });
+  };
+
+  /* ================= VALIDATION ================= */
+  const validateTab = (tab) => {
+    if (tab === "student") {
+      if (!student.studentName || !student.admissionNo) {
+        toast.error("Student name & Admission No required");
+        return false;
+      }
+    }
+    if (tab === "academic") {
+      if (!studentInfo.classID || !studentInfo.sectionID) {
+        toast.error("Class & Section required");
+        return false;
+      }
+    }
+    if (tab === "father") {
+      if (!student.fathersName) {
+        toast.error("Father name required");
+        return false;
+      }
+    }
+    if (tab === "mother") {
+      if (!student.mothersName) {
+        toast.error("Mother name required");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleTabChange = (tab) => {
+    if (!validateTab(activeTab)) return;
+    setActiveTab(tab);
+  };
+
+  const validateAll = () => {
+    return ["student", "academic", "father", "mother"].every(validateTab);
+  };
+
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateAll()) return;
+
+    const formData = new FormData();
+    formData.append("student", JSON.stringify(student));
+    formData.append("studentInfo", JSON.stringify(studentInfo));
+    Object.keys(photos).forEach(
+      (p) => photos[p] && formData.append(p, photos[p])
+    );
+    const transactionId = Date.now();
+    formData.append("transactionId", transactionId);
+
+    try {
+      if (isEdit) {
+        await axios.put(
+          `http://localhost:5161/api/student/update/${studentId}`,
+          formData
+        );
+        toast.success("Student updated successfully");
+      } else {
+        await axios.post(
+          "http://localhost:5161/api/student/insert",
+          formData
+        );
+        toast.success("Student added successfully");
+      }
+    } catch {
+      toast.error("Operation failed");
+    }
+  };
+
+  /* ================= UI ================= */
+  return (
+    <div className="container mt-4">
+      <ToastContainer position="top-right" />
+      <div className="card shadow card-modern">
+        <div className="card-header bg-gradient-primary text-white">
+          <h4>{isEdit ? "Edit Student" : "Student Admission Form"}</h4>
+        </div>
+
+        <div className="card-body">
+          {/* ===== TABS ===== */}
+          <ul className="nav nav-tabs mb-4">
+            {["student", "academic", "address", "father", "mother"].map((t) => (
+              <li className="nav-item" key={t}>
+                <button
+                  type="button"
+                  className={`nav-link ${activeTab === t ? "active" : ""}`}
+                  onClick={() => handleTabChange(t)}
+                >
+                  {t.toUpperCase()}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <form onSubmit={handleSubmit}>
+            {/* ===== STUDENT DETAILS ===== */}
+            {activeTab === "student" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Name</label>
+                  <input
+                    name="studentName"
+                    className="form-control"
+                    value={student.studentName}
+                    onChange={handleStudentChange}
+                    required
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Gender</label>
+                  <select
+                    name="gender"
+                    className="form-select"
+                    value={student.gender}
+                    onChange={handleStudentChange}
+                  >
+                    <option value="">Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Admission No</label>
+                  <input
+                    name="admissionNo"
+                    className="form-control"
+                    value={student.admissionNo}
+                    onChange={handleStudentChange}
+                    required
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>DOB</label>
+                  <input
+                    type="date"
+                    name="dob"
+                    className="form-control"
+                    value={student.dob}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Session</label>
+                  <input
+                    name="sessionOfAdmission"
+                    className="form-control"
+                    value={student.sessionOfAdmission}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Photo</label>
+                  <input
+                    type="file"
+                    name="studentPhoto"
+                    className="form-control"
+                    onChange={handlePhotoChange}
+                  />
+                  {preview.studentPhoto && (
+                    <img
+                      src={preview.studentPhoto}
+                      alt=""
+                      className="img-thumbnail mt-2"
+                      style={{ height: 120 }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ===== ACADEMIC ===== */}
+            {activeTab === "academic" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Class</label>
+                  <select
+                    className="form-select"
+                    name="classID"
+                    value={studentInfo.classID}
+                    onChange={(e) => {
+                      handleInfoChange(e);
+                      loadSections(e.target.value);
+                    }}
+                  >
+                    <option value="">Select</option>
+                    {classes.map((c) => (
+                      <option key={c.classID} value={c.classID}>
+                        {c.className}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Section</label>
+                  <select
+                    className="form-select"
+                    name="sectionID"
+                    value={studentInfo.sectionID}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select</option>
+                    {sections.map((s) => (
+                      <option key={s.sectionID} value={s.sectionID}>
+                        {s.sectionName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Roll No (Auto)</label>
+                  <input
+                    className="form-control"
+                    value={studentInfo.rollNo}
+                    readOnly
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Route</label>
+                  <select
+                    className="form-select"
+                    name="route"
+                    value={studentInfo.route}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select Route</option>
+                    {routes.map((r) => (
+                      <option key={r.routeID} value={r.routeID}>
+                        {r.routeName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Bus Stop</label>
+                  <select
+                    className="form-select"
+                    name="busStop"
+                    value={studentInfo.busStop}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select Bus Stop</option>
+                    {busStops.map((b) => (
+                      <option key={b.busStopID} value={b.busStopName}>
+                        {b.busStopName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* ===== ADDRESS ===== */}
+            {activeTab === "address" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Present Address</label>
+                  <input
+                    name="addressPresent"
+                    className="form-control"
+                    value={student.addressPresent}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Permanent Address</label>
+                  <input
+                    name="addressPermanent"
+                    className="form-control"
+                    value={student.addressPermanent}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>District</label>
+                  <input
+                    name="district"
+                    className="form-control"
+                    value={student.district}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>State</label>
+                  <input
+                    name="state"
+                    className="form-control"
+                    value={student.state}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Pincode</label>
+                  <input
+                    name="pincode"
+                    className="form-control"
+                    value={student.pincode}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ===== FATHER ===== */}
+            {activeTab === "father" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Name</label>
+                  <input
+                    name="fathersName"
+                    className="form-control"
+                    value={student.fathersName}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Qualification</label>
+                  <input
+                    name="fathersQualification"
+                    className="form-control"
+                    value={student.fathersQualification}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Job</label>
+                  <input
+                    name="fathersJob"
+                    className="form-control"
+                    value={student.fathersJob}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Phone</label>
+                  <input
+                    name="fathersPhone"
+                    className="form-control"
+                    value={student.fathersPhone}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Photo</label>
+                  <input
+                    type="file"
+                    name="fatherPhoto"
+                    className="form-control"
+                    onChange={handlePhotoChange}
+                  />
+                  {preview.fatherPhoto && (
+                    <img
+                      src={preview.fatherPhoto}
+                      alt=""
+                      className="img-thumbnail mt-2"
+                      style={{ height: 120 }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ===== MOTHER ===== */}
+            {activeTab === "mother" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Name</label>
+                  <input
+                    name="mothersName"
+                    className="form-control"
+                    value={student.mothersName}
+                    onChange={handleStudentChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Photo</label>
+                  <input
+                    type="file"
+                    name="motherPhoto"
+                    className="form-control"
+                    onChange={handlePhotoChange}
+                  />
+                  {preview.motherPhoto && (
+                    <img
+                      src={preview.motherPhoto}
+                      alt=""
+                      className="img-thumbnail mt-2"
+                      style={{ height: 120 }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="text-end mt-4">
+              <button className="btn btn-secondary me-2" type="button" onClick={() => window.print()}>
+                Print Preview
+              </button>
+              <button className="btn btn-success px-5">{isEdit ? "Update" : "Save"}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StudentForm;
