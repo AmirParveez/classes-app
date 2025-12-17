@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./StudentForm.css"; // Your existing styles
+import "./StudentForm.css";
 
 const StudentForm = ({ studentId }) => {
-  /* ================= STATE ================= */
   const [activeTab, setActiveTab] = useState("academic");
   const [isEdit, setIsEdit] = useState(false);
 
@@ -66,7 +65,6 @@ const StudentForm = ({ studentId }) => {
     motherPhoto: "",
   });
 
-  // Cache for performance
   const cache = useRef({
     classes: null,
     sections: {},
@@ -75,6 +73,21 @@ const StudentForm = ({ studentId }) => {
   });
 
   /* ================= LOAD INITIAL ================= */
+  const loadStudent = useCallback(async (id) => {
+    try {
+      const res = await axios.get(`http://localhost:5161/api/student/${id}`);
+      setStudent(res.data.student);
+      setStudentInfo(res.data.studentInfo);
+      setPreview({
+        studentPhoto: res.data.studentPhoto,
+        fatherPhoto: res.data.fatherPhoto,
+        motherPhoto: res.data.motherPhoto,
+      });
+    } catch {
+      toast.error("Failed to load student details");
+    }
+  }, []);
+
   useEffect(() => {
     loadClasses();
     loadRoutes();
@@ -82,7 +95,7 @@ const StudentForm = ({ studentId }) => {
       setIsEdit(true);
       loadStudent(studentId);
     }
-  }, [studentId]);
+  }, [studentId, loadStudent]);
 
   /* ================= API ================= */
   const loadClasses = async () => {
@@ -100,6 +113,7 @@ const StudentForm = ({ studentId }) => {
   };
 
   const loadSections = async (classId) => {
+    if (!classId) return;
     if (cache.current.sections[classId]) {
       setSections(cache.current.sections[classId]);
       return;
@@ -128,14 +142,13 @@ const StudentForm = ({ studentId }) => {
   };
 
   const loadBusStops = async (routeId) => {
+    if (!routeId) return;
     if (cache.current.busStops[routeId]) {
       setBusStops(cache.current.busStops[routeId]);
       return;
     }
     try {
-      const res = await axios.get(
-        `http://localhost:5161/api/transport/busstops?routeId=${routeId}`
-      );
+      const res = await axios.get(`http://localhost:5161/api/busstops/byroute/${routeId}`);
       setBusStops(res.data);
       cache.current.busStops[routeId] = res.data;
     } catch {
@@ -143,30 +156,16 @@ const StudentForm = ({ studentId }) => {
     }
   };
 
-  const loadStudent = async (id) => {
-    try {
-      const res = await axios.get(`http://localhost:5161/api/student/${id}`);
-      setStudent(res.data.student);
-      setStudentInfo(res.data.studentInfo);
-      setPreview({
-        studentPhoto: res.data.studentPhoto,
-        fatherPhoto: res.data.fatherPhoto,
-        motherPhoto: res.data.motherPhoto,
-      });
-    } catch {
-      toast.error("Failed to load student details");
-    }
+  /* ================= HANDLERS ================= */
+  const handleStudentChange = (e) => {
+    const { name, value } = e.target;
+    setStudent({ ...student, [name]: value });
   };
 
-  /* ================= HANDLERS ================= */
-  const handleStudentChange = (e) =>
-    setStudent({ ...student, [e.target.name]: e.target.value });
-
-  const handleInfoChange = async (e) => {
+  const handleInfoChange = (e) => {
     const { name, value } = e.target;
     setStudentInfo({ ...studentInfo, [name]: value });
 
-    // Load bus stops if route selected
     if (name === "route") {
       loadBusStops(value);
     }
@@ -192,17 +191,13 @@ const StudentForm = ({ studentId }) => {
         return false;
       }
     }
-    if (tab === "father") {
-      if (!student.fathersName) {
-        toast.error("Father name required");
-        return false;
-      }
+    if (tab === "father" && !student.fathersName) {
+      toast.error("Father name required");
+      return false;
     }
-    if (tab === "mother") {
-      if (!student.mothersName) {
-        toast.error("Mother name required");
-        return false;
-      }
+    if (tab === "mother" && !student.mothersName) {
+      toast.error("Mother name required");
+      return false;
     }
     return true;
   };
@@ -224,24 +219,17 @@ const StudentForm = ({ studentId }) => {
     const formData = new FormData();
     formData.append("student", JSON.stringify(student));
     formData.append("studentInfo", JSON.stringify(studentInfo));
-    Object.keys(photos).forEach(
-      (p) => photos[p] && formData.append(p, photos[p])
-    );
+    Object.keys(photos).forEach((p) => photos[p] && formData.append(p, photos[p]));
+
     const transactionId = Date.now();
     formData.append("transactionId", transactionId);
 
     try {
       if (isEdit) {
-        await axios.put(
-          `http://localhost:5161/api/student/update/${studentId}`,
-          formData
-        );
+        await axios.put(`http://localhost:5161/api/student/update/${studentId}`, formData);
         toast.success("Student updated successfully");
       } else {
-        await axios.post(
-          "http://localhost:5161/api/student/insert",
-          formData
-        );
+        await axios.post("http://localhost:5161/api/student/insert", formData);
         toast.success("Student added successfully");
       }
     } catch {
@@ -259,7 +247,6 @@ const StudentForm = ({ studentId }) => {
         </div>
 
         <div className="card-body">
-          {/* ===== TABS ===== */}
           <ul className="nav nav-tabs mb-4">
             {["academic", "student", "address", "father", "mother"].map((t) => (
               <li className="nav-item" key={t}>
@@ -297,6 +284,7 @@ const StudentForm = ({ studentId }) => {
                     ))}
                   </select>
                 </div>
+
                 <div className="col-md-3">
                   <label>Section</label>
                   <select
@@ -313,6 +301,7 @@ const StudentForm = ({ studentId }) => {
                     ))}
                   </select>
                 </div>
+
                 <div className="col-md-3">
                   <label>Roll No</label>
                   <input
@@ -322,6 +311,7 @@ const StudentForm = ({ studentId }) => {
                     onChange={handleInfoChange}
                   />
                 </div>
+
                 <div className="col-md-3">
                   <label>Route</label>
                   <select
@@ -338,6 +328,7 @@ const StudentForm = ({ studentId }) => {
                     ))}
                   </select>
                 </div>
+
                 <div className="col-md-3">
                   <label>Bus Stop</label>
                   <select
@@ -357,7 +348,7 @@ const StudentForm = ({ studentId }) => {
               </div>
             )}
 
-            {/* ===== STUDENT DETAILS ===== */}
+            {/* ===== OTHER TABS ===== */}
             {activeTab === "student" && (
               <div className="row g-3">
                 <div className="col-md-3">
@@ -406,7 +397,6 @@ const StudentForm = ({ studentId }) => {
               </div>
             )}
 
-            {/* ===== ADDRESS ===== */}
             {activeTab === "address" && (
               <div className="row g-3">
                 <div className="col-md-3">
@@ -430,7 +420,6 @@ const StudentForm = ({ studentId }) => {
               </div>
             )}
 
-            {/* ===== FATHER ===== */}
             {activeTab === "father" && (
               <div className="row g-3">
                 <div className="col-md-3">
@@ -454,7 +443,6 @@ const StudentForm = ({ studentId }) => {
               </div>
             )}
 
-            {/* ===== MOTHER ===== */}
             {activeTab === "mother" && (
               <div className="row g-3">
                 <div className="col-md-3">
@@ -477,7 +465,7 @@ const StudentForm = ({ studentId }) => {
               >
                 Print Preview
               </button>
-              <button className="btn btn-success px-5">
+              <button className="btn btn-success px-5" type="submit">
                 {isEdit ? "Update" : "Save"}
               </button>
             </div>
