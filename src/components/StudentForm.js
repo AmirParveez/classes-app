@@ -7,7 +7,7 @@ import "./StudentForm.css"; // Your existing styles
 
 const StudentForm = ({ studentId }) => {
   /* ================= STATE ================= */
-  const [activeTab, setActiveTab] = useState("student");
+  const [activeTab, setActiveTab] = useState("academic");
   const [isEdit, setIsEdit] = useState(false);
 
   const [student, setStudent] = useState({
@@ -91,7 +91,7 @@ const StudentForm = ({ studentId }) => {
       return;
     }
     try {
-      const res = await axios.get("http://localhost:5161/api/classes");
+      const res = await axios.get("http://localhost:5161/api/classes?session=2024-25");
       setClasses(res.data);
       cache.current.classes = res.data;
     } catch {
@@ -105,9 +105,7 @@ const StudentForm = ({ studentId }) => {
       return;
     }
     try {
-      const res = await axios.get(
-        `http://localhost:5161/api/sections/byclass/${classId}`
-      );
+      const res = await axios.get(`http://localhost:5161/api/sections?classid=${classId}`);
       setSections(res.data);
       cache.current.sections[classId] = res.data;
     } catch {
@@ -168,18 +166,6 @@ const StudentForm = ({ studentId }) => {
     const { name, value } = e.target;
     setStudentInfo({ ...studentInfo, [name]: value });
 
-    // AUTO ROLL NO
-    if (name === "sectionID") {
-      try {
-        const res = await axios.get(
-          `http://localhost:5161/api/student/next-rollno?classId=${studentInfo.classID}&sectionId=${value}`
-        );
-        setStudentInfo((prev) => ({ ...prev, rollNo: res.data }));
-      } catch {
-        toast.error("Failed to generate Roll No");
-      }
-    }
-
     // Load bus stops if route selected
     if (name === "route") {
       loadBusStops(value);
@@ -227,7 +213,7 @@ const StudentForm = ({ studentId }) => {
   };
 
   const validateAll = () => {
-    return ["student", "academic", "father", "mother"].every(validateTab);
+    return ["academic", "student", "address", "father", "mother"].every(validateTab);
   };
 
   /* ================= SUBMIT ================= */
@@ -275,7 +261,7 @@ const StudentForm = ({ studentId }) => {
         <div className="card-body">
           {/* ===== TABS ===== */}
           <ul className="nav nav-tabs mb-4">
-            {["student", "academic", "address", "father", "mother"].map((t) => (
+            {["academic", "student", "address", "father", "mother"].map((t) => (
               <li className="nav-item" key={t}>
                 <button
                   type="button"
@@ -289,6 +275,88 @@ const StudentForm = ({ studentId }) => {
           </ul>
 
           <form onSubmit={handleSubmit}>
+            {/* ===== ACADEMIC ===== */}
+            {activeTab === "academic" && (
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label>Class</label>
+                  <select
+                    className="form-select"
+                    name="classID"
+                    value={studentInfo.classID}
+                    onChange={(e) => {
+                      handleInfoChange(e);
+                      loadSections(e.target.value);
+                    }}
+                  >
+                    <option value="">Select</option>
+                    {classes.map((c) => (
+                      <option key={c.classID} value={c.classID}>
+                        {c.className}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Section</label>
+                  <select
+                    className="form-select"
+                    name="sectionID"
+                    value={studentInfo.sectionID}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select</option>
+                    {sections.map((s) => (
+                      <option key={s.sectionID} value={s.sectionID}>
+                        {s.sectionName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Roll No</label>
+                  <input
+                    className="form-control"
+                    name="rollNo"
+                    value={studentInfo.rollNo}
+                    onChange={handleInfoChange}
+                  />
+                </div>
+                <div className="col-md-3">
+                  <label>Route</label>
+                  <select
+                    className="form-select"
+                    name="route"
+                    value={studentInfo.route}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select Route</option>
+                    {routes.map((r) => (
+                      <option key={r.routeID} value={r.routeID}>
+                        {r.routeName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label>Bus Stop</label>
+                  <select
+                    className="form-select"
+                    name="busStop"
+                    value={studentInfo.busStop}
+                    onChange={handleInfoChange}
+                  >
+                    <option value="">Select Bus Stop</option>
+                    {busStops.map((b) => (
+                      <option key={b.busStopID} value={b.busStopName}>
+                        {b.busStopName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* ===== STUDENT DETAILS ===== */}
             {activeTab === "student" && (
               <div className="row g-3">
@@ -335,113 +403,6 @@ const StudentForm = ({ studentId }) => {
                     onChange={handleStudentChange}
                   />
                 </div>
-                <div className="col-md-3">
-                  <label>Session</label>
-                  <input
-                    name="sessionOfAdmission"
-                    className="form-control"
-                    value={student.sessionOfAdmission}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>Photo</label>
-                  <input
-                    type="file"
-                    name="studentPhoto"
-                    className="form-control"
-                    onChange={handlePhotoChange}
-                  />
-                  {preview.studentPhoto && (
-                    <img
-                      src={preview.studentPhoto}
-                      alt=""
-                      className="img-thumbnail mt-2"
-                      style={{ height: 120 }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ===== ACADEMIC ===== */}
-            {activeTab === "academic" && (
-              <div className="row g-3">
-                <div className="col-md-3">
-                  <label>Class</label>
-                  <select
-                    className="form-select"
-                    name="classID"
-                    value={studentInfo.classID}
-                    onChange={(e) => {
-                      handleInfoChange(e);
-                      loadSections(e.target.value);
-                    }}
-                  >
-                    <option value="">Select</option>
-                    {classes.map((c) => (
-                      <option key={c.classID} value={c.classID}>
-                        {c.className}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-3">
-                  <label>Section</label>
-                  <select
-                    className="form-select"
-                    name="sectionID"
-                    value={studentInfo.sectionID}
-                    onChange={handleInfoChange}
-                  >
-                    <option value="">Select</option>
-                    {sections.map((s) => (
-                      <option key={s.sectionID} value={s.sectionID}>
-                        {s.sectionName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-3">
-                  <label>Roll No (Auto)</label>
-                  <input
-                    className="form-control"
-                    value={studentInfo.rollNo}
-                    readOnly
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>Route</label>
-                  <select
-                    className="form-select"
-                    name="route"
-                    value={studentInfo.route}
-                    onChange={handleInfoChange}
-                  >
-                    <option value="">Select Route</option>
-                    {routes.map((r) => (
-                      <option key={r.routeID} value={r.routeID}>
-                        {r.routeName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-3">
-                  <label>Bus Stop</label>
-                  <select
-                    className="form-select"
-                    name="busStop"
-                    value={studentInfo.busStop}
-                    onChange={handleInfoChange}
-                  >
-                    <option value="">Select Bus Stop</option>
-                    {busStops.map((b) => (
-                      <option key={b.busStopID} value={b.busStopName}>
-                        {b.busStopName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
             )}
 
@@ -463,33 +424,6 @@ const StudentForm = ({ studentId }) => {
                     name="addressPermanent"
                     className="form-control"
                     value={student.addressPermanent}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>District</label>
-                  <input
-                    name="district"
-                    className="form-control"
-                    value={student.district}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>State</label>
-                  <input
-                    name="state"
-                    className="form-control"
-                    value={student.state}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>Pincode</label>
-                  <input
-                    name="pincode"
-                    className="form-control"
-                    value={student.pincode}
                     onChange={handleStudentChange}
                   />
                 </div>
@@ -517,41 +451,6 @@ const StudentForm = ({ studentId }) => {
                     onChange={handleStudentChange}
                   />
                 </div>
-                <div className="col-md-3">
-                  <label>Job</label>
-                  <input
-                    name="fathersJob"
-                    className="form-control"
-                    value={student.fathersJob}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>Phone</label>
-                  <input
-                    name="fathersPhone"
-                    className="form-control"
-                    value={student.fathersPhone}
-                    onChange={handleStudentChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <label>Photo</label>
-                  <input
-                    type="file"
-                    name="fatherPhoto"
-                    className="form-control"
-                    onChange={handlePhotoChange}
-                  />
-                  {preview.fatherPhoto && (
-                    <img
-                      src={preview.fatherPhoto}
-                      alt=""
-                      className="img-thumbnail mt-2"
-                      style={{ height: 120 }}
-                    />
-                  )}
-                </div>
               </div>
             )}
 
@@ -567,31 +466,20 @@ const StudentForm = ({ studentId }) => {
                     onChange={handleStudentChange}
                   />
                 </div>
-                <div className="col-md-3">
-                  <label>Photo</label>
-                  <input
-                    type="file"
-                    name="motherPhoto"
-                    className="form-control"
-                    onChange={handlePhotoChange}
-                  />
-                  {preview.motherPhoto && (
-                    <img
-                      src={preview.motherPhoto}
-                      alt=""
-                      className="img-thumbnail mt-2"
-                      style={{ height: 120 }}
-                    />
-                  )}
-                </div>
               </div>
             )}
 
             <div className="text-end mt-4">
-              <button className="btn btn-secondary me-2" type="button" onClick={() => window.print()}>
+              <button
+                className="btn btn-secondary me-2"
+                type="button"
+                onClick={() => window.print()}
+              >
                 Print Preview
               </button>
-              <button className="btn btn-success px-5">{isEdit ? "Update" : "Save"}</button>
+              <button className="btn btn-success px-5">
+                {isEdit ? "Update" : "Save"}
+              </button>
             </div>
           </form>
         </div>
